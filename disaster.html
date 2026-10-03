@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다시 세우다 — 재난으로 무너진 땅을 위한 중보기도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #f4efe6;
+    --dim: rgba(244, 239, 230, .72);
+    --accent: #e3b873;
+    --bg: #0d0f12;
+    --slide-seconds: 9s;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); overflow: hidden;
+    font-family: "Noto Sans KR", "Apple SD Gothic Neo", sans-serif; word-break: keep-all; }
+  .serif { font-family: "Noto Serif KR", "AppleMyungjo", serif; }
+
+  #stage { position: fixed; inset: 0; }
+  .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+  .slide.on { opacity: 1; }
+  .bg { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.02); }
+  .slide.on .bg { animation: drift calc(var(--slide-seconds) + 3s) ease-out forwards; }
+  @keyframes drift { from { transform: scale(1.02); } to { transform: scale(1.12); } }
+  .shade { position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(8,10,13,.45) 0%, rgba(8,10,13,.35) 35%, rgba(8,10,13,.88) 100%); }
+  .slide.dark .shade { background: rgba(8,10,13,.78); }
+
+  .body { position: absolute; left: 7vw; right: 7vw; bottom: 9vh; }
+  .tag { color: var(--accent); font-size: 1.5vw; font-weight: 700; letter-spacing: .28em; margin-bottom: 2.2vh; }
+  h1 { font-size: 7.4vw; line-height: 1.1; font-weight: 700; }
+  h2 { font-size: 3.5vw; line-height: 1.35; font-weight: 700; max-width: 22em; }
+  .sub { margin-top: 2.4vh; font-size: 1.9vw; line-height: 1.6; color: var(--dim); max-width: 34em; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; margin-top: 4.5vh; }
+  .stat { border-top: 2px solid var(--accent); padding-top: 2vh; }
+  .num { font-size: 5.6vw; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .num small { font-size: .42em; font-weight: 500; margin-left: .15em; }
+  .lab { margin-top: 1.4vh; font-size: 1.7vw; color: var(--dim); }
+
+  .prayers { list-style: none; margin-top: 3.5vh; }
+  .prayers li { font-size: 2.7vw; line-height: 1.45; padding: 2vh 0 2vh 1.3em; position: relative;
+    border-top: 1px solid rgba(244,239,230,.22); }
+  .prayers li::before { content: ""; position: absolute; left: 0; top: 3.7vh; width: .45em; height: .45em;
+    border-radius: 50%; background: var(--accent); }
+
+  .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 0 9vw; }
+  .center h1 { font-size: 9vw; }
+  .center .sub { margin-inline: auto; }
+  .verse { font-size: 3.1vw; line-height: 1.6; max-width: 22em; margin-inline: auto; }
+  .ref { margin-top: 3vh; color: var(--accent); font-size: 1.7vw; letter-spacing: .1em; }
+
+  .credit { position: absolute; right: 2vw; top: 2.2vh; font-size: 1vw; color: rgba(244,239,230,.55); }
+  .asof { position: absolute; left: 7vw; bottom: 3.4vh; font-size: 1.05vw; color: rgba(244,239,230,.5); }
+
+  #bar { position: fixed; left: 0; bottom: 0; height: 3px; background: var(--accent); width: 0; z-index: 5; }
+  #start { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: grid; place-content: center;
+    text-align: center; gap: 3vh; }
+  #start h1 { font-size: 6vw; }
+  #start button { justify-self: center; font: inherit; font-size: 1.6vw; font-weight: 700; color: #1a1408;
+    background: var(--accent); border: 0; border-radius: 999px; padding: 1.1em 2.6em; cursor: pointer; }
+  #start p { color: var(--dim); font-size: 1.15vw; line-height: 1.7; }
+  #yt { position: fixed; width: 1px; height: 1px; left: -10px; top: -10px; opacity: 0; }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <div class="tag">기도학교 · 중보기도</div>
+  <h1 class="serif">다시 세우다</h1>
+  <button id="go">시작하기</button>
+  <p>← → 이동 &nbsp;·&nbsp; 스페이스바 일시정지 &nbsp;·&nbsp; F 전체 화면</p>
+</div>
+
+<div id="stage"></div>
+<div id="bar"></div>
+<div id="yt"></div>
+
+<script>
+// 배경음악: [2시간] PRAY - 깊은 기도로 인도하는 음악 (YouTube)
+const BGM_ID = "f742p7mQ0Ic";
+const SECONDS = 9;
+
+const IMG = {
+  np1: "https://earthsky.org/upl/2026/08/Nepal-flooding_AP-Niranjan-Shrestha_26Aug2026-e1787828834619.jpeg",
+  np2: "https://media.cnn.com/api/v1/images/stellar/prod/gettyimages-2291667734-20260827210529912.jpg?c=16x9&q=w_1600,c_fill",
+  np3: "https://global.unitednations.entermediadb.net/assets/mediadb/services/module/asset/downloads/preset/Collections/Embargoed/2026/09/15-09-2026_UNICEF_Nepal-02.jpg/image770x420cropped.jpg",
+  co1: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Pereira_after_the_earthquake_-_WCK_%28cropped%29.jpg/1280px-Pereira_after_the_earthquake_-_WCK_%28cropped%29.jpg",
+  co2: "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3375x1898+0+176/resize/1400/quality/85/format/jpeg/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fb1%2Fa5%2F784e9cd34d2cb0873ca1b63ee34d%2Fap26222743359122.jpg",
+  co3: "https://wvusstatic.com/www/uploads/2026/08/10164537/W080-0291-02.jpeg",
+  cd1: "https://www.aljazeera.com/wp-content/uploads/2026/09/reuters_6aba8008-1790607368.jpg?resize=1920%2C1440",
+  cd2: "https://www.aljazeera.com/wp-content/uploads/2026/09/epa_6aaeffbd4704-1789853629.jpg?resize=1920%2C1440",
+  cd3: "https://www.doctorswithoutborders.org/sites/default/files/styles/social_share/public/image_base_media/2026/07/MSF372294.jpg?itok=ULJzQ1I-",
+  mm1: "https://english.dvb.no/wp-content/uploads/2026/08/6323394287806124820.jpg",
+  mm2: "https://www.unicef.org/myanmar/sites/unicef.org.myanmar/files/styles/open_graph_image/public/Interview_4_Langkho033.JPG.jpeg?itok=j36I2pum",
+};
+
+const title = (img, credit, tag, name, line) => ({ img, credit, html:
+  `<div class="body"><div class="tag">${tag}</div><h1 class="serif">${name}</h1><p class="sub">${line}</p></div>` });
+
+const stats = (img, credit, tag, head, items, asof) => ({ img, credit, dark: true, html:
+  `<div class="body"><div class="tag">${tag} · 상황</div><h2>${head}</h2><div class="stats">` +
+  items.map(([n, u, l]) => `<div class="stat"><div class="num">${n}<small>${u}</small></div><div class="lab">${l}</div></div>`).join("") +
+  `</div></div><div class="asof">${asof}</div>` });
+
+const pray = (img, credit, tag, items) => ({ img, credit, dark: true, html:
+  `<div class="body"><div class="tag">${tag} · 기도 제목</div><ul class="prayers">` +
+  items.map(t => `<li>${t}</li>`).join("") + `</ul></div>` });
+
+const SLIDES = [
+  { html: `<div class="center"><div><div class="tag">중보기도 · 첫 번째 주제</div>
+      <h1 class="serif">다시 세우다</h1>
+      <p class="sub">재난으로 무너진 땅을 위하여<br>네팔 · 콜롬비아 · 콩고민주공화국 · 미얀마</p></div></div>` },
+
+  // 네팔
+  title(IMG.np1, "사진: EarthSky (AP)", "01 · 네팔", "네팔",
+    "2026년 8월 26일, 빙하가 무너지며 일어난 산사태와 홍수가 국경 마을들을 휩쓸었습니다."),
+  stats(IMG.np2, "사진: CNN (Getty Images)", "네팔",
+    "10년 전 지진으로 집을 잃었던 이들이 또다시 집을 잃었습니다.",
+    [["1,200", "명 이상", "사망"], ["4,200", "명", "실종"], ["160", "만 명", "피해 주민"]],
+    "재건 비용 최소 50억 달러 (국내총생산의 약 10%) · 2026년 9월 보도 기준"),
+  pray(IMG.np3, "사진: UN News (UNICEF)", "네팔", [
+    "가족을 찾지 못한 이들에게 위로와 소망을 주소서.",
+    "두 번 무너진 집과 마음이 다시 세워지게 하소서.",
+    "재건을 맡은 정부와 구호 단체에 지혜와 도움의 손길을 더하소서.",
+  ]),
+
+  // 콜롬비아
+  title(IMG.co1, "사진: Wikimedia Commons (World Central Kitchen)", "02 · 콜롬비아", "콜롬비아",
+    "2026년 8월 10일, 규모 7.4의 지진이 커피 재배 지역을 강타했습니다."),
+  stats(IMG.co2, "사진: NPR (AP)", "콜롬비아",
+    "1999년 이후 콜롬비아에서 가장 많은 생명을 앗아간 지진입니다.",
+    [["335", "명", "사망"], ["4,613", "명", "부상"], ["5,000", "채", "파손된 주택"]],
+    "실종 111명 · 357개 지방자치단체 피해 · 유엔 인도주의업무조정국 추산"),
+  pray(IMG.co3, "사진: World Vision", "콜롬비아", [
+    "가족을 잃은 이들과 다친 이들을 위로하시고 회복시켜 주소서.",
+    "집과 일터를 잃은 농가의 삶이 다시 세워지게 하소서.",
+    "복구 현장에서 일하는 이들을 안전하게 지켜 주소서.",
+  ]),
+
+  // 콩고민주공화국
+  title(IMG.cd1, "사진: Al Jazeera (Reuters)", "03 · 콩고민주공화국", "콩고민주공화국",
+    "콩고 역사상 가장 크고 가장 빠르게 번지는 에볼라가 동부 지역을 덮었습니다."),
+  stats(IMG.cd2, "사진: Al Jazeera (EPA)", "콩고민주공화국",
+    "감염된 두 사람 중 한 사람이 목숨을 잃고 있습니다.",
+    [["8,224", "명", "확진"], ["3,982", "명", "사망"], ["48", "%", "치명률"]],
+    "세계보건기구 국제 공중보건 비상사태 선포 · 의료진 부족 · 2026년 9월 30일 기준"),
+  pray(IMG.cd3, "사진: 국경없는의사회", "콩고민주공화국", [
+    "감염의 확산을 멈추시고 아픈 이들을 고쳐 주소서.",
+    "의료진을 보호하시고 부족한 일손을 채워 주소서.",
+    "두려움이 물러가고, 무너진 의료 체계가 다시 세워지게 하소서.",
+  ]),
+
+  // 미얀마
+  title(IMG.mm1, "사진: DVB", "04 · 미얀마", "미얀마",
+    "내전이 이어지는 땅에, 7월 말부터 몬순 홍수가 덮쳤습니다."),
+  stats(IMG.mm1, "사진: DVB", "미얀마",
+    "전쟁을 피해 떠난 이들이 이번에는 물을 피해 떠나고 있습니다.",
+    [["60", "만 명", "홍수 피해 주민"], ["380", "만 명", "내전 피난민"], ["1,620", "만 명", "구호가 필요한 사람"]],
+    "홍수 사망 최소 25명 · 2026년 8월 말 유니세프 발표 기준"),
+  pray(IMG.mm2, "사진: UNICEF Myanmar", "미얀마", [
+    "물에 잠긴 마을마다 식량과 구호의 손길이 닿게 하소서.",
+    "전쟁을 그치게 하시고 이 땅에 평화를 주소서.",
+    "떠난 이들이 돌아갈 집과 마을이 다시 세워지게 하소서.",
+  ]),
+
+  { html: `<div class="center"><div>
+      <p class="verse serif">네게서 날 자들이<br>오래 황폐된 곳들을 다시 세울 것이며</p>
+      <div class="ref">이사야 58:12</div></div></div>` },
+];
+
+const stage = document.getElementById("stage");
+SLIDES.forEach(s => {
+  const el = document.createElement("section");
+  el.className = "slide" + (s.dark ? " dark" : "");
+  el.innerHTML = (s.img ? `<div class="bg" style="background-image:url('${s.img}')"></div><div class="shade"></div>` : "") +
+    s.html + (s.credit ? `<div class="credit">${s.credit}</div>` : "");
+  stage.appendChild(el);
+});
+const els = [...stage.children], bar = document.getElementById("bar");
+let i = -1, timer = null, paused = false;
+
+function show(n) {
+  i = Math.max(0, Math.min(els.length - 1, n));
+  els.forEach((e, k) => e.classList.toggle("on", k === i));
+  bar.style.transition = "none"; bar.style.width = "0";
+  clearTimeout(timer);
+  if (paused) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.transition = `width ${SECONDS}s linear`; bar.style.width = "100%";
+  }));
+  if (i < els.length - 1) timer = setTimeout(() => show(i + 1), SECONDS * 1000);
+}
+
+function startMusic() {
+  if (location.protocol.startsWith("http")) {
+    window.onYouTubeIframeAPIReady = () => new YT.Player("yt", {
+      videoId: BGM_ID, playerVars: { autoplay: 1, controls: 0 },
+      events: { onReady: e => { e.target.setVolume(60); e.target.playVideo(); } } });
+    document.head.appendChild(Object.assign(document.createElement("script"), { src: "https://www.youtube.com/iframe_api" }));
+  } else {
+    // 파일을 직접 열면 유튜브 내장 재생이 막히므로, 음악을 작은 새 창으로 엽니다.
+    window.open(`https://www.youtube.com/watch?v=${BGM_ID}`, "bgm", "width=480,height=320");
+  }
+}
+
+document.getElementById("go").onclick = () => {
+  startMusic();
+  document.getElementById("start").remove();
+  document.documentElement.requestFullscreen?.().catch(() => {});
+  show(0);
+};
+addEventListener("keydown", e => {
+  if (i < 0) return;
+  if (e.key === "ArrowRight") show(i + 1);
+  else if (e.key === "ArrowLeft") show(i - 1);
+  else if (e.key === " ") { paused = !paused; show(i); }
+  else if (e.key.toLowerCase() === "f") document.documentElement.requestFullscreen?.();
+});
+</script>
+</body>
+</html>
